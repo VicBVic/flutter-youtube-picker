@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
@@ -14,8 +15,20 @@ class WheelPage extends StatefulWidget {
 class _WheelPageState extends State<WheelPage>
     with SingleTickerProviderStateMixin {
   final StreamController<int> wheelController = StreamController();
+  final List<Widget> wheelWidgets = [
+    Text("Instant Death"),
+    Text("Win 1000 dollars"),
+    Text(" Spin Again"),
+    Text("Free coupon"),
+    Text("JACKPOT: Honda Civic"),
+  ];
   late final AnimationController passiveSpinController;
   late final Stream<int> wheelStream;
+  final Random rng = Random.secure();
+
+  final double fakeoutPercent = 0.5;
+
+  bool isFakeout = false;
 
   @override
   void initState() {
@@ -24,12 +37,6 @@ class _WheelPageState extends State<WheelPage>
     passiveSpinController.repeat();
 
     wheelStream = wheelController.stream.asBroadcastStream();
-
-    wheelStream.listen((event) {
-      passiveSpinController
-          .animateTo(0.0)
-          .then((value) => passiveSpinController.stop());
-    });
     super.initState();
   }
 
@@ -46,12 +53,25 @@ class _WheelPageState extends State<WheelPage>
               turns: passiveSpinController,
               child: FortuneWheel(
                 selected: wheelStream,
+                animateFirst: false,
+                curve: FortuneCurve.spin,
                 indicators: [],
-                items: const [
-                  FortuneItem(child: Text('Numarul 1')),
-                  FortuneItem(child: Text('Numarul 2')),
-                  FortuneItem(child: Text('Numarul 3')),
-                ],
+                items: wheelWidgets.map((e) => FortuneItem(child: e)).toList(),
+                onAnimationStart: () {
+                  if (isFakeout) {
+                    passiveSpinController.animateTo(0.2,
+                        duration: Duration(seconds: 3));
+                  } else {
+                    passiveSpinController.stop();
+                  }
+                },
+                onAnimationEnd: () {
+                  if (isFakeout) {
+                    passiveSpinController.animateTo(0.0,
+                        duration: Duration(seconds: 3),
+                        curve: Curves.bounceOut);
+                  }
+                },
               ),
             ),
             Align(alignment: Alignment.topCenter, child: TriangleIndicator()),
@@ -65,6 +85,9 @@ class _WheelPageState extends State<WheelPage>
             ),
             onPressed: () {
               wheelController.add(0);
+              setState(() {
+                isFakeout = rng.nextDouble() <= fakeoutPercent;
+              });
             },
             style: ButtonStyle(
               elevation: MaterialStateProperty.resolveWith(
